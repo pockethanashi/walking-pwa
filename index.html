@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>歩きスマホ防止カウンター</title>
+  <link rel="manifest" href="manifest.json" />
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js');
+    }
+  </script>
+  <style>
+    body { font-family: sans-serif; text-align: center; padding: 2em; }
+    h1 { font-size: 1.5em; }
+    #time { font-size: 3em; margin-top: 1em; }
+    button { padding: 1em 2em; font-size: 1em; }
+  </style>
+</head>
+<body>
+  <h1>スマホ未使用時間</h1>
+  <div id="time">0 秒</div>
+  <button onclick="resetTimer()">リセット</button>
+
+  <script>
+    let lastTouchTime = Date.now();
+    let unusedSeconds = parseInt(localStorage.getItem('unusedTime')) || 0;
+    let counting = true;
+
+    document.addEventListener('touchstart', () => {
+      lastTouchTime = Date.now();
+    });
+
+    function updateDisplay() {
+      document.getElementById('time').textContent = `${unusedSeconds} 秒`;
+    }
+
+    setInterval(() => {
+      const now = Date.now();
+      if (counting && now - lastTouchTime > 5000) {
+        unusedSeconds++;
+        localStorage.setItem('unusedTime', unusedSeconds);
+        updateDisplay();
+      }
+    }, 1000);
+
+    function resetTimer() {
+      unusedSeconds = 0;
+      localStorage.removeItem('unusedTime');
+      updateDisplay();
+    }
+
+    updateDisplay();
+  </script>
+</body>
+</html>
