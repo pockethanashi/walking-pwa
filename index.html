@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>歩きスマホ防止カウンター</title>
+  <title>歩きスマホ防止カウンター（復帰補正あり）</title>
   <link rel="manifest" href="manifest.json" />
   <script>
     if ('serviceWorker' in navigator) {
@@ -14,22 +14,50 @@
     body { font-family: sans-serif; text-align: center; padding: 2em; }
     h1 { font-size: 1.5em; }
     #time { font-size: 3em; margin-top: 1em; }
-    button { padding: 1em 2em; font-size: 1em; }
+    #status { font-size: 1.2em; margin-top: 1em; }
+    button { padding: 1em 2em; font-size: 1em; margin-top: 1em; }
   </style>
 </head>
 <body>
-  <h1>スマホ未使用時間</h1>
+  <h1>歩きスマホ防止カウンター（復帰補正あり）</h1>
   <div id="time">0 秒</div>
+  <div id="status">ステータス: 待機中</div>
   <button onclick="resetTimer()">リセット</button>
 
   <script>
     let lastTouchTime = Date.now();
+    let lastPauseTime = Date.now();
     let unusedSeconds = parseInt(localStorage.getItem('unusedTime')) || 0;
+    let isWalking = false;
+    let motionThreshold = 1.2;
     let counting = true;
 
     document.addEventListener('touchstart', () => {
       lastTouchTime = Date.now();
     });
+
+    if (typeof DeviceMotionEvent.requestPermission === 'function') {
+      DeviceMotionEvent.requestPermission()
+        .then(response => {
+          if (response === 'granted') {
+            window.addEventListener('devicemotion', handleMotion);
+          }
+        })
+        .catch(console.error);
+    } else {
+      window.addEventListener('devicemotion', handleMotion);
+    }
+
+    function handleMotion(event) {
+      const acc = event.accelerationIncludingGravity;
+      if (!acc) return;
+
+      const total = Math.sqrt(acc.x * acc.x + acc.y * acc.y + acc.z * acc.z);
+      isWalking = total > motionThreshold;
+      document.getElementById('status').textContent = isWalking
+        ? 'ステータス: 歩行中'
+        : 'ステータス: 静止中';
+    }
 
     function updateDisplay() {
       document.getElementById('time').textContent = `${unusedSeconds} 秒`;
@@ -37,7 +65,7 @@
 
     setInterval(() => {
       const now = Date.now();
-      if (counting && now - lastTouchTime > 5000) {
+      if (counting && isWalking && now - lastTouchTime > 5000) {
         unusedSeconds++;
         localStorage.setItem('unusedTime', unusedSeconds);
         updateDisplay();
@@ -49,6 +77,20 @@
       localStorage.removeItem('unusedTime');
       updateDisplay();
     }
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") {
+        lastPauseTime = Date.now();
+      } else if (document.visibilityState === "visible") {
+        const now = Date.now();
+        const elapsed = Math.floor((now - lastPauseTime) / 1000);
+        if (elapsed > 5 && isWalking) {
+          unusedSeconds += elapsed;
+          localStorage.setItem('unusedTime', unusedSeconds);
+          updateDisplay();
+        }
+      }
+    });
 
     updateDisplay();
   </script>
