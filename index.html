@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>歩きスマホ防止カウンター（加速度モニタ付き）</title>
+  <title>歩きスマホ防止カウンター（重力基準ロジック）</title>
   <link rel="manifest" href="manifest.json" />
   <script>
     if ('serviceWorker' in navigator) {
@@ -19,10 +19,10 @@
   </style>
 </head>
 <body>
-  <h1>歩きスマホ防止カウンター（加速度モニタ付き）</h1>
+  <h1>歩きスマホ防止カウンター（重力基準ロジック）</h1>
   <div id="time">0 秒</div>
   <div id="status">ステータス: モーションセンサー未許可</div>
-  <div id="acc-values">加速度: x=0.00, y=0.00, z=0.00, 合計=0.00</div>
+  <div id="acc-values">加速度: x=0.00, y=0.00, z=0.00, 合計=0.00, 差分=0.00</div>
   <button id="permission-button" onclick="requestSensorPermission()">センサーを有効にする</button>
   <button onclick="resetTimer()">リセット</button>
 
@@ -32,8 +32,9 @@
     let unusedSeconds = parseInt(localStorage.getItem('unusedTime')) || 0;
     let isWalking = false;
     let motionBuffer = [];
-    let bufferSize = 10;
-    let motionThreshold = 1.2;
+    const bufferSize = 10;
+    const reference = 9.8;
+    const deviationThreshold = 0.5;
 
     document.addEventListener('touchstart', () => {
       lastTouchTime = Date.now();
@@ -65,12 +66,13 @@
       const y = acc.y.toFixed(2);
       const z = acc.z.toFixed(2);
       const total = Math.sqrt(acc.x * acc.x + acc.y * acc.y + acc.z * acc.z);
-      const totalFixed = total.toFixed(2);
+      const deviation = Math.abs(total - reference);
+      const deviationFixed = deviation.toFixed(2);
 
-      motionBuffer.push(total);
+      motionBuffer.push(deviation);
       if (motionBuffer.length > bufferSize) motionBuffer.shift();
 
-      const activeCount = motionBuffer.filter(v => v > motionThreshold).length;
+      const activeCount = motionBuffer.filter(v => v > deviationThreshold).length;
       isWalking = activeCount >= 5;
 
       document.getElementById('status').textContent = isWalking
@@ -78,7 +80,7 @@
         : 'ステータス: 静止中（カウントなし）';
 
       document.getElementById('acc-values').textContent =
-        `加速度: x=${x}, y=${y}, z=${z}, 合計=${totalFixed}`;
+        `加速度: x=${x}, y=${y}, z=${z}, 合計=${total.toFixed(2)}, 差分=${deviationFixed}`;
     }
 
     function updateDisplay() {
