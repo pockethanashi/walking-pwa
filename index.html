@@ -29,7 +29,7 @@
     let lastPauseTime = Date.now();
     let unusedSeconds = parseInt(localStorage.getItem('unusedTime')) || 0;
     let isWalking = false;
-    let motionThreshold = 1.2;
+    let motionThreshold = 0.8;
     let counting = true;
 
     document.addEventListener('touchstart', () => {
