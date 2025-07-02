@@ -1,1 +1,150 @@
-<内容省略：前と同じくindex.htmlのコード>
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>歩きスマホ防止カウンター（日別記録付き）</title>
+  <link rel="manifest" href="manifest.json" />
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js');
+    }
+  </script>
+  <style>
+    body { font-family: sans-serif; text-align: center; padding: 2em; }
+    h1 { font-size: 1.5em; }
+    #time { font-size: 2em; margin-top: 1em; }
+    #status, #acc-values, #log { font-size: 1em; margin-top: 1em; }
+    button { padding: 1em 2em; font-size: 1em; margin-top: 1em; }
+  </style>
+</head>
+<body>
+  <h1>歩きスマホ防止カウンター（日別記録付き）</h1>
+  <div id="time">本日: 0 秒</div>
+  <div id="status">ステータス: モーションセンサー未許可</div>
+  <div id="acc-values">加速度: x=0.00, y=0.00, z=0.00, 合計=0.00, 差分=0.00</div>
+  <button id="permission-button" onclick="requestSensorPermission()">センサーを有効にする</button>
+  <button onclick="resetToday()">今日の記録をリセット</button>
+  <div id="log">日別ログ:</div>
+
+  <script>
+    const reference = 9.8;
+    const deviationThreshold = 0.5;
+    const bufferSize = 10;
+    let motionBuffer = [];
+    let isWalking = false;
+    let lastTouchTime = Date.now();
+    let lastPauseTime = Date.now();
+
+    document.addEventListener('touchstart', () => {
+      lastTouchTime = Date.now();
+    });
+
+    function getTodayKey() {
+      const today = new Date();
+      return today.toISOString().split("T")[0];
+    }
+
+    function loadDailyData() {
+      return JSON.parse(localStorage.getItem("dailyTimeLog") || "{}");
+    }
+
+    function saveDailyData(data) {
+      localStorage.setItem("dailyTimeLog", JSON.stringify(data));
+    }
+
+    function updateDisplay() {
+      const data = loadDailyData();
+      const today = getTodayKey();
+      const todayValue = data[today] || 0;
+      document.getElementById('time').textContent = `本日: ${todayValue} 秒`;
+
+      let logHtml = "日別ログ:<br>";
+      Object.entries(data).forEach(([date, sec]) => {
+        logHtml += `${date}: ${sec} 秒<br>`;
+      });
+      document.getElementById("log").innerHTML = logHtml;
+    }
+
+    function incrementToday() {
+      const data = loadDailyData();
+      const today = getTodayKey();
+      data[today] = (data[today] || 0) + 1;
+      saveDailyData(data);
+      updateDisplay();
+    }
+
+    function resetToday() {
+      const data = loadDailyData();
+      const today = getTodayKey();
+      delete data[today];
+      saveDailyData(data);
+      updateDisplay();
+    }
+
+    function requestSensorPermission() {
+      if (typeof DeviceMotionEvent.requestPermission === 'function') {
+        DeviceMotionEvent.requestPermission().then(response => {
+          if (response === 'granted') {
+            window.addEventListener('devicemotion', handleMotion);
+            document.getElementById('status').textContent = 'ステータス: センサー有効化済み';
+            document.getElementById('permission-button').style.display = 'none';
+          } else {
+            alert('センサーアクセスが拒否されました');
+          }
+        }).catch(console.error);
+      } else {
+        window.addEventListener('devicemotion', handleMotion);
+        document.getElementById('status').textContent = 'ステータス: センサー有効化済み';
+        document.getElementById('permission-button').style.display = 'none';
+      }
+    }
+
+    function handleMotion(event) {
+      const acc = event.accelerationIncludingGravity;
+      if (!acc) return;
+
+      const x = acc.x.toFixed(2);
+      const y = acc.y.toFixed(2);
+      const z = acc.z.toFixed(2);
+      const total = Math.sqrt(acc.x * acc.x + acc.y * acc.y + acc.z * acc.z);
+      const deviation = Math.abs(total - reference);
+      const deviationFixed = deviation.toFixed(2);
+
+      motionBuffer.push(deviation);
+      if (motionBuffer.length > bufferSize) motionBuffer.shift();
+
+      const activeCount = motionBuffer.filter(v => v > deviationThreshold).length;
+      isWalking = activeCount >= 5;
+
+      document.getElementById('status').textContent = isWalking
+        ? 'ステータス: 歩行中（カウント可能）'
+        : 'ステータス: 静止中（カウントなし）';
+
+      document.getElementById('acc-values').textContent =
+        `加速度: x=${x}, y=${y}, z=${z}, 合計=${total.toFixed(2)}, 差分=${deviationFixed}`;
+    }
+
+    setInterval(() => {
+      const now = Date.now();
+      if (isWalking && now - lastTouchTime > 5000) {
+        incrementToday();
+      }
+    }, 1000);
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") {
+        lastPauseTime = Date.now();
+      } else if (document.visibilityState === "visible") {
+        const now = Date.now();
+        const elapsed = Math.floor((now - lastPauseTime) / 1000);
+        if (elapsed > 5 && isWalking) {
+          for (let i = 0; i < elapsed; i++) incrementToday();
+        }
+      }
+    });
+
+    updateDisplay();
+  </script>
+</body>
+</html>
