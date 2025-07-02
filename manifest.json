@@ -1,10 +1,11 @@
+
 {
   "name": "歩きスマホ防止カウンター",
   "short_name": "未使用カウンター",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#ffffff",
-  "description": "スマホ未使用時間を記録するアプリ",
+  "description": "スマホ未使用時間を日別に記録するアプリ",
   "icons": [
     {
       "src": "icon.png",
