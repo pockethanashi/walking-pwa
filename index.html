@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>歩きスマホ防止カウンター（iOS許可対応）</title>
+  <title>歩きスマホ防止カウンター（精度改善版）</title>
   <link rel="manifest" href="manifest.json" />
   <script>
     if ('serviceWorker' in navigator) {
@@ -20,7 +20,7 @@
   </style>
 </head>
 <body>
-  <h1>歩きスマホ防止カウンター（iOS許可対応）</h1>
+  <h1>歩きスマホ防止カウンター（精度改善版）</h1>
   <div id="time">0 秒</div>
   <div id="status">ステータス: モーションセンサー未許可</div>
   <button id="permission-button" onclick="requestSensorPermission()">センサーを有効にする</button>
@@ -31,7 +31,9 @@
     let lastPauseTime = Date.now();
     let unusedSeconds = parseInt(localStorage.getItem('unusedTime')) || 0;
     let isWalking = false;
-    let motionThreshold = 0.8;
+    let motionBuffer = [];
+    let bufferSize = 10;
+    let motionThreshold = 1.2;
 
     document.addEventListener('touchstart', () => {
       lastTouchTime = Date.now();
@@ -59,7 +61,15 @@
       const acc = event.accelerationIncludingGravity;
       if (!acc) return;
       const total = Math.sqrt(acc.x * acc.x + acc.y * acc.y + acc.z * acc.z);
-      isWalking = total > motionThreshold;
+
+      motionBuffer.push(total);
+      if (motionBuffer.length > bufferSize) {
+        motionBuffer.shift();
+      }
+
+      const activeCount = motionBuffer.filter(v => v > motionThreshold).length;
+      isWalking = activeCount >= 5;
+
       document.getElementById('status').textContent = isWalking
         ? 'ステータス: 歩行中（カウント可能）'
         : 'ステータス: 静止中（カウントなし）';
