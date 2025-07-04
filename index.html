@@ -4,11 +4,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>歩きスマホ判定アプリ（最終仕様）</title>
+  <title>歩きスマホ判定アプリ（モーション許可対応）</title>
   <link rel="manifest" href="manifest.json" />
 </head>
 <body>
   <h1>歩きスマホをしていない時間を計測</h1>
+  <button id="enableMotion">モーションセンサーを有効にする</button>
   <p id="status">初期化中...</p>
   <p id="count">0秒</p>
   <p id="gyro">傾き：--</p>
@@ -17,6 +18,20 @@
     let count = 0;
     let lastTouchTime = Date.now();
     let isLookingAtPhone = false;
+
+    document.getElementById("enableMotion").addEventListener("click", async () => {
+      if (typeof DeviceMotionEvent.requestPermission === "function") {
+        const response = await DeviceMotionEvent.requestPermission();
+        const orientation = await DeviceOrientationEvent.requestPermission?.();
+        if (response === "granted" && (!orientation || orientation === "granted")) {
+          document.getElementById("enableMotion").style.display = "none";
+        } else {
+          alert("モーションセンサーの利用が許可されませんでした");
+        }
+      } else {
+        document.getElementById("enableMotion").style.display = "none";
+      }
+    });
 
     window.addEventListener("devicemotion", (event) => {
       const acc = event.accelerationIncludingGravity;
