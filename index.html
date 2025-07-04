@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>歩きスマホ判定アプリ（スリープ復帰対応）</title>
+  <title>歩きスマホ判定アプリ（閾値10版）</title>
   <link rel="manifest" href="manifest.json" />
 </head>
 <body>
@@ -35,7 +35,7 @@
     window.addEventListener("devicemotion", (event) => {
       const acc = event.accelerationIncludingGravity;
       const total = Math.sqrt(acc.x * acc.x + acc.y * acc.y + acc.z * acc.z);
-      walking = total > 11;
+      walking = total > 10;
     });
 
     window.addEventListener("deviceorientation", (event) => {
