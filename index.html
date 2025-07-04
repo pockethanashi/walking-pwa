@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>歩きスマホ判定アプリ（閾値10版）</title>
+  <title>歩きスマホ判定アプリ（スリープ補正版）</title>
   <link rel="manifest" href="manifest.json" />
 </head>
 <body>
@@ -17,6 +17,7 @@
     let count = 0;
     let lastTouchTime = Date.now();
     let isLookingAtPhone = false;
+    let sleepStart = null;
 
     document.getElementById("enableMotion").addEventListener("click", async () => {
       if (typeof DeviceMotionEvent.requestPermission === "function") {
@@ -55,11 +56,15 @@
     });
 
     document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible") {
-        walking = false;
-        setTimeout(() => {
-          lastTouchTime = Date.now();
-        }, 500);
+      const now = Date.now();
+      if (document.visibilityState === "hidden") {
+        sleepStart = now;
+      } else if (document.visibilityState === "visible" && sleepStart) {
+        const sleepDuration = Math.floor((now - sleepStart) / 1000);
+        const estimatedWalking = Math.floor(sleepDuration * 0.3); // 30%補正
+        count += estimatedWalking;
+        document.getElementById("count").textContent = `${count}秒`;
+        sleepStart = null;
       }
     });
 
